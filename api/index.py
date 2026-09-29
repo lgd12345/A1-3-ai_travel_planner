@@ -556,10 +556,17 @@ def get_travel_recommendation(
 - reason은 추천 근거를 2~4문장으로 작성하세요.
 - seasonal_tip은 해당 여행 시기의 일반적인 여행 포인트나
   준비사항을 1~2문장으로 작성하세요.
-- 여행 스타일에 축제가 포함된 경우, 여행 날짜의 계절성을 고려하여
-  축제나 지역 행사를 즐기기 좋은 지역을 우선적으로 고려하세요.
-- 현재 실시간 날씨라고 표현하지 마세요.
-- 확인되지 않은 실제 행사나 축제를 만들어내지 마세요.
+- 사용자가 여행 스타일을 선택한 경우, 선택된 여행 스타일을
+  여행지 결정의 핵심 기준으로 사용하세요.
+- 추천 지역이 선택된 여행 스타일과 잘 맞는 이유가
+  reason에 구체적으로 드러나야 합니다.
+- 여행 스타일에 축제가 포함된 경우, 입력한 여행 날짜를 기준으로
+  실제 행사나 축제를 즐기기 적합한 지역을 우선적으로 추천하세요.
+- 축제가 선택된 경우 산책, 감상, 탐방, 카페 방문 같은
+  일반 여행 활동을 축제나 행사로 간주하지 마세요.
+- 알고 있는 실제 행사나 축제를 근거로 삼을 수 있는 경우에는
+  reason에 해당 행사나 축제 이름을 자연스럽게 포함하세요.
+- 확인되지 않은 행사명이나 개최 일정은 만들어내지 마세요.
 - 해외 지역을 추천하지 마세요.
 
 출력 형식:
@@ -622,6 +629,12 @@ def retry_travel_recommendation(
   시/군/구를 포함
 - reason은 2~4문장
 - seasonal_tip은 1~2문장
+- 사용자가 여행 스타일을 선택한 경우 해당 스타일을
+  여행지 추천의 핵심 기준으로 사용
+- reason에는 추천 지역이 선택된 여행 스타일과 잘 맞는 이유를 포함
+- 축제가 선택된 경우 산책, 감상, 탐방 같은 일반 여행 활동을
+  축제나 행사로 간주하지 않음
+- 확인되지 않은 행사명이나 개최 일정은 만들어내지 않음
 - 해외 지역 금지
 """
 
@@ -909,39 +922,168 @@ def safe_search_places(
 def collect_local_data(
     api_key,
     city,
+    styles,
 ):
 
     warnings = []
+    places = []
 
     # -------------------------
-    # Tourist places
+    # Style-based places
     # -------------------------
 
-    place_result = (
-        safe_search_places(
-            api_key,
-            f"{city} 관광명소",
-            "PLACE_SEARCH_FAILED",
-            (
-                "일부 관광지 정보를 "
-                "불러오지 못했습니다."
-            ),
+    style_queries = []
+
+    for style in styles:
+
+        style_label = (
+            STYLE_LABELS.get(style)
         )
+
+        if not style_label:
+            continue
+
+        style_queries.append(
+            f"{city} {style_label}"
+        )
+
+    # 같은 검색어가 생길 경우 중복 제거
+    style_queries = list(
+        dict.fromkeys(style_queries)
     )
 
-    places = place_result[
-        "data"
-    ]
+    # 스타일이 선택된 경우
+    # 선택한 스타일을 기반으로 장소 검색
+    if style_queries:
 
-    if place_result[
-        "warning"
-    ]:
-
-        warnings.append(
-            place_result[
-                "warning"
-            ]
+        per_style_limit = max(
+            1,
+            5 // len(style_queries),
         )
+
+        for query in style_queries:
+
+            style_result = (
+                safe_search_places(
+                    api_key,
+                    query,
+                    "PLACE_SEARCH_FAILED",
+                    (
+                        "일부 관광지 정보를 "
+                        "불러오지 못했습니다."
+                    ),
+                )
+            )
+
+            if style_result["warning"]:
+
+                warning_exists = any(
+                    warning["code"]
+                    == style_result[
+                        "warning"
+                    ]["code"]
+                    for warning in warnings
+                )
+
+                if not warning_exists:
+                    warnings.append(
+                        style_result[
+                            "warning"
+                        ]
+                    )
+
+            for place in (
+                style_result["data"][
+                    :per_style_limit
+                ]
+            ):
+
+                place_key = (
+                    place.get("name"),
+                    place.get("address"),
+                )
+
+                already_exists = any(
+                    (
+                        existing.get("name"),
+                        existing.get("address"),
+                    )
+                    == place_key
+                    for existing in places
+                )
+
+                if already_exists:
+                    continue
+
+                places.append(place)
+
+                if len(places) >= 5:
+                    break
+
+            if len(places) >= 5:
+                break
+
+    # -------------------------
+    # General tourist fallback
+    # -------------------------
+
+    # 스타일 검색 결과가 5개보다 적거나
+    # 스타일을 선택하지 않은 경우
+    # 기존 관광명소 검색으로 부족한 장소를 채움
+    if len(places) < 5:
+
+        place_result = (
+            safe_search_places(
+                api_key,
+                f"{city} 관광명소",
+                "PLACE_SEARCH_FAILED",
+                (
+                    "일부 관광지 정보를 "
+                    "불러오지 못했습니다."
+                ),
+            )
+        )
+
+        if place_result["warning"]:
+
+            warning_exists = any(
+                warning["code"]
+                == place_result[
+                    "warning"
+                ]["code"]
+                for warning in warnings
+            )
+
+            if not warning_exists:
+                warnings.append(
+                    place_result[
+                        "warning"
+                    ]
+                )
+
+        for place in place_result["data"]:
+
+            place_key = (
+                place.get("name"),
+                place.get("address"),
+            )
+
+            already_exists = any(
+                (
+                    existing.get("name"),
+                    existing.get("address"),
+                )
+                == place_key
+                for existing in places
+            )
+
+            if already_exists:
+                continue
+
+            places.append(place)
+
+            if len(places) >= 5:
+                break
 
     # -------------------------
     # Restaurants
@@ -975,11 +1117,11 @@ def collect_local_data(
             ]
         )
 
-    # API는 정상인데 검색 결과가 없는 경우
-    if (
-        place_result["ok"]
-        and not places
-    ):
+    # -------------------------
+    # Empty result warnings
+    # -------------------------
+
+    if not places:
 
         warnings.append(
             {
@@ -1065,6 +1207,7 @@ def get_final_itinerary(
   일반적인 여행 활동 수준으로 작성하세요.
 - 비슷한 유형의 장소가 여러 개 포함되어 있어도 같은 유형을 반복해서 사용하지 말고,
   서로 다른 경험이 균형 있게 느껴지도록 일정을 구성하세요.
+- 선택된 여행 스타일과 관련 없는 장소와 활동만으로 일정을 구성하지 마세요.
 - 여행 스타일에 축제가 포함된 경우, 지역 문화 행사와 계절 행사 분위기를
   느낄 수 있는 여행 흐름으로 일정을 구성하세요.
 - 사용자의 동행과 여행 스타일을 자연스럽게 반영하세요.
@@ -1383,6 +1526,9 @@ def create_travel_plan(payload):
         kakao_api_key,
         recommendation[
             "recommended_city"
+        ],
+        travel_request[
+        "styles"
         ],
     )
 
