@@ -1,10 +1,12 @@
 import json
 import os
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler
 
 import requests
+
 from dotenv import load_dotenv
+from fastapi import Body, FastAPI
+from fastapi.responses import JSONResponse
 
 
 # =========================================================
@@ -12,6 +14,10 @@ from dotenv import load_dotenv
 # =========================================================
 
 load_dotenv()
+
+app = FastAPI(
+    title="TripAI API"
+)
 
 
 # =========================================================
@@ -1227,153 +1233,68 @@ def create_travel_plan(payload):
         warnings,
     )
 
-
 # =========================================================
-# 15. Vercel Serverless Handler
+# FastAPI Routes
 # =========================================================
 
-class handler(BaseHTTPRequestHandler):
+@app.post("/api/plan")
+def plan(payload: dict = Body(...)):
+    try:
+        result = create_travel_plan(payload)
 
-    def send_json(
-        self,
-        status_code,
-        payload,
-    ):
-        body = json.dumps(
-            payload,
-            ensure_ascii=False,
-        ).encode("utf-8")
-
-        self.send_response(
-            status_code
+        return JSONResponse(
+            status_code=200,
+            content=result,
         )
 
-        self.send_header(
-            "Content-Type",
-            "application/json; charset=utf-8",
+    except ServiceError as error:
+        print(
+            "[TripAI] ServiceError:",
+            error.code,
+            error,
         )
 
-        self.send_header(
-            "Content-Length",
-            str(len(body)),
-        )
-
-        self.end_headers()
-
-        self.wfile.write(body)
-
-
-    def do_POST(self):
-        try:
-            content_length = int(
-                self.headers.get(
-                    "Content-Length",
-                    "0",
-                )
-            )
-
-            if content_length <= 0:
-                raise ServiceError(
-                    code="INVALID_REQUEST",
-                    message=(
-                        "요청 데이터를 "
-                        "확인해주세요."
-                    ),
-                    status_code=400,
-                )
-
-            raw_body = self.rfile.read(
-                content_length
-            )
-
-            try:
-                payload = json.loads(
-                    raw_body.decode(
-                        "utf-8"
-                    )
-                )
-
-            except (
-                UnicodeDecodeError,
-                json.JSONDecodeError,
-            ):
-                raise ServiceError(
-                    code="INVALID_REQUEST",
-                    message=(
-                        "요청 데이터를 "
-                        "처리할 수 없습니다."
-                    ),
-                    status_code=400,
-                )
-
-            result = create_travel_plan(
-                payload
-            )
-
-            self.send_json(
-                200,
-                result,
-            )
-
-        except ServiceError as error:
-            print(
-                "[TripAI] ServiceError:",
-                error.code,
-                error,
-            )
-
-            self.send_json(
-                error.status_code,
-                {
-                    "ok": False,
-                    "error": {
-                        "code": error.code,
-                        "message": (
-                            error.message
-                        ),
-                    },
-                },
-            )
-
-        except Exception as error:
-            # 이 위치에서는 상세 오류를
-            # 클라이언트에 노출하지 않고 서버 로그에만 기록한다.
-            print(
-                "[TripAI] Unexpected error:",
-                repr(error),
-            )
-
-            self.send_json(
-                500,
-                {
-                    "ok": False,
-                    "error": {
-                        "code": (
-                            "INTERNAL_SERVER_ERROR"
-                        ),
-                        "message": (
-                            "요청 처리 중 오류가 "
-                            "발생했습니다. "
-                            "잠시 후 다시 시도해주세요."
-                        ),
-                    },
-                },
-            )
-
-
-    def do_GET(self):
-        self.send_json(
-            405,
-            {
+        return JSONResponse(
+            status_code=error.status_code,
+            content={
                 "ok": False,
                 "error": {
-                    "code": (
-                        "METHOD_NOT_ALLOWED"
-                    ),
+                    "code": error.code,
+                    "message": error.message,
+                },
+            },
+        )
+
+    except Exception as error:
+        print(
+            "[TripAI] Unexpected error:",
+            repr(error),
+        )
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
                     "message": (
-                        "지원하지 않는 "
-                        "요청 방식입니다."
+                        "요청 처리 중 오류가 발생했습니다. "
+                        "잠시 후 다시 시도해주세요."
                     ),
                 },
             },
         )
+
+
+@app.get("/api/plan")
+def get_plan():
+    return JSONResponse(
+        status_code=405,
+        content={
+            "ok": False,
+            "error": {
+                "code": "METHOD_NOT_ALLOWED",
+                "message": "POST 요청만 지원합니다.",
+            },
+        },
+    )
