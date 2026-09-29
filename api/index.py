@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import requests
@@ -234,14 +234,26 @@ def validate_date(value):
         parsed_date = datetime.strptime(
             value,
             "%Y-%m-%d",
-        )
-
-        return parsed_date.strftime(
-            "%Y-%m-%d"
-        )
+        ).date()
 
     except ValueError:
         return None
+
+    today = date.today()
+
+    max_date = (
+        today + timedelta(days=365)
+    )
+
+    if (
+        parsed_date < today
+        or parsed_date > max_date
+    ):
+        return None
+
+    return parsed_date.strftime(
+        "%Y-%m-%d"
+    )
 
 
 def validate_request(payload):

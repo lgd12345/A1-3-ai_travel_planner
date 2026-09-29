@@ -196,6 +196,42 @@ function getFormData() {
    5. Validation
    ========================================================= */
 
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+
+function setTravelDateRange() {
+  if (!travelDateInput) {
+    return;
+  }
+
+  const today = new Date();
+
+  const maxDate = new Date(today);
+
+  maxDate.setFullYear(
+    today.getFullYear() + 1
+  );
+
+  travelDateInput.min =
+    formatLocalDate(today);
+
+  travelDateInput.max =
+    formatLocalDate(maxDate);
+}
+
+
 function clearValidationErrors() {
   if (dateError) {
     dateError.textContent = "";
@@ -215,6 +251,25 @@ function validateForm() {
   if (!travelDateInput.value) {
     dateError.textContent =
       "여행 날짜를 선택해주세요.";
+
+    travelDateInput.setAttribute(
+      "aria-invalid",
+      "true"
+    );
+
+    travelDateInput.focus();
+
+    return false;
+  }
+
+  if (
+    travelDateInput.value <
+      travelDateInput.min ||
+    travelDateInput.value >
+      travelDateInput.max
+  ) {
+    dateError.textContent =
+      "여행 날짜는 오늘부터 1년 이내로 선택해주세요.";
 
     travelDateInput.setAttribute(
       "aria-invalid",
@@ -915,6 +970,7 @@ async function handlePlannerSubmit(event) {
 
 function initializeApp() {
   initializeMobileNavigation();
+  setTravelDateRange();
 
   if (plannerForm) {
     plannerForm.addEventListener(
