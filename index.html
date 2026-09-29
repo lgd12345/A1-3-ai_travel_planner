@@ -1,17 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <meta
-    name="description"
-    content="여행 날짜와 취향을 바탕으로 국내 여행지와 실제 장소를 추천하는 AI 여행 플래너"
-  >
+  <meta name="description" content="여행 날짜와 취향을 바탕으로 국내 여행지와 실제 장소를 추천하는 AI 여행 플래너">
 
   <title>TripAI | AI 국내 여행 플래너</title>
 
@@ -27,18 +22,11 @@
   ========================== -->
   <header class="site-header">
     <div class="container header-inner">
-      <a
-        href="#home"
-        class="logo"
-        aria-label="TripAI 홈으로 이동"
-      >
+      <a href="#home" class="logo" aria-label="TripAI 홈으로 이동">
         Trip<span>AI</span>
       </a>
 
-      <nav
-        class="desktop-nav"
-        aria-label="주요 메뉴"
-      >
+      <nav class="desktop-nav" aria-label="주요 메뉴">
         <a href="#home">Home</a>
         <a href="#planner">Planner</a>
         <a href="#how-it-works">How it works</a>
@@ -46,23 +34,12 @@
       </nav>
 
       <div class="header-actions">
-        <button
-          type="button"
-          id="themeToggle"
-          class="icon-button"
-          aria-label="다크 모드 전환"
-        >
+        <button type="button" id="themeToggle" class="icon-button" aria-label="다크 모드 전환">
           <span aria-hidden="true">☾</span>
         </button>
 
-        <button
-          type="button"
-          id="menuToggle"
-          class="menu-button"
-          aria-label="모바일 메뉴 열기"
-          aria-expanded="false"
-          aria-controls="mobileNav"
-        >
+        <button type="button" id="menuToggle" class="menu-button" aria-label="모바일 메뉴 열기" aria-expanded="false"
+          aria-controls="mobileNav">
           <span></span>
           <span></span>
           <span></span>
@@ -70,12 +47,7 @@
       </div>
     </div>
 
-    <nav
-      id="mobileNav"
-      class="mobile-nav"
-      aria-label="모바일 메뉴"
-      hidden
-    >
+    <nav id="mobileNav" class="mobile-nav" aria-label="모바일 메뉴" hidden>
       <a href="#home">Home</a>
       <a href="#planner">Planner</a>
       <a href="#how-it-works">How it works</a>
@@ -88,10 +60,7 @@
     <!-- =========================
          Home / Hero
     ========================== -->
-    <section
-      id="home"
-      class="hero section"
-    >
+    <section id="home" class="hero section">
       <div class="container hero-inner">
         <div class="hero-content">
           <p class="eyebrow">
@@ -110,26 +79,17 @@
           </p>
 
           <div class="hero-actions">
-            <a
-              href="#planner"
-              class="button button-primary"
-            >
+            <a href="#planner" class="button button-primary">
               여행 계획 만들기
             </a>
 
-            <a
-              href="#how-it-works"
-              class="button button-secondary"
-            >
+            <a href="#how-it-works" class="button button-secondary">
               어떻게 작동하나요?
             </a>
           </div>
         </div>
 
-        <div
-          class="hero-visual"
-          aria-hidden="true"
-        >
+        <div class="hero-visual" aria-hidden="true">
           <div class="travel-preview-card">
             <span class="preview-label">
               AI PICK
@@ -152,10 +112,7 @@
     <!-- =========================
          AI Planner
     ========================== -->
-    <section
-      id="planner"
-      class="planner section"
-    >
+    <section id="planner" class="planner section">
       <div class="container">
         <div class="section-heading">
           <p class="eyebrow">
@@ -173,11 +130,7 @@
         </div>
 
 
-        <form
-          id="plannerForm"
-          class="planner-form"
-          novalidate
-        >
+        <form id="plannerForm" class="planner-form" novalidate>
           <!-- 날짜 -->
           <div class="form-group">
             <label for="travelDate">
@@ -185,18 +138,9 @@
               <span class="required-mark" aria-hidden="true">*</span>
             </label>
 
-            <input
-              type="date"
-              id="travelDate"
-              name="date"
-              required
-            >
+            <input type="date" id="travelDate" name="date" required>
 
-            <p
-              id="dateError"
-              class="field-error"
-              aria-live="polite"
-            ></p>
+            <p id="dateError" class="field-error" aria-live="polite"></p>
           </div>
 
 
@@ -208,38 +152,22 @@
 
             <div class="choice-grid">
               <label class="choice-card">
-                <input
-                  type="radio"
-                  name="companion"
-                  value="solo"
-                >
+                <input type="checkbox" name="companion" value="solo">
                 <span>혼자</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="radio"
-                  name="companion"
-                  value="couple"
-                >
+                <input type="checkbox" name="companion" value="couple">
                 <span>연인</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="radio"
-                  name="companion"
-                  value="friend"
-                >
+                <input type="checkbox" name="companion" value="friend">
                 <span>친구</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="radio"
-                  name="companion"
-                  value="family"
-                >
+                <input type="checkbox" name="companion" value="family">
                 <span>가족</span>
               </label>
             </div>
@@ -254,82 +182,46 @@
 
             <div class="choice-grid">
               <label class="choice-card">
-                <input
-                  type="checkbox"
-                  name="styles"
-                  value="healing"
-                >
+                <input type="checkbox" name="styles" value="healing">
                 <span>힐링</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="checkbox"
-                  name="styles"
-                  value="nature"
-                >
+                <input type="checkbox" name="styles" value="nature">
                 <span>자연</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="checkbox"
-                  name="styles"
-                  value="food"
-                >
+                <input type="checkbox" name="styles" value="food">
                 <span>맛집</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="checkbox"
-                  name="styles"
-                  value="culture"
-                >
+                <input type="checkbox" name="styles" value="culture">
                 <span>문화</span>
               </label>
 
               <label class="choice-card">
-                <input
-                  type="checkbox"
-                  name="styles"
-                  value="activity"
-                >
+                <input type="checkbox" name="styles" value="activity">
                 <span>액티비티</span>
               </label>
               <label class="choice-card">
-                <input
-                    type="checkbox"
-                    name="styles"
-                    value="festival"
-                >
+                <input type="checkbox" name="styles" value="festival">
                 <span>축제</span>
-            </label>
+              </label>
             </div>
           </fieldset>
 
 
-          <button
-            type="submit"
-            id="generateButton"
-            class="button button-primary generate-button"
-          >
+          <button type="submit" id="generateButton" class="button button-primary generate-button">
             AI 여행 플랜 만들기
           </button>
         </form>
 
 
         <!-- Loading -->
-        <section
-          id="loadingState"
-          class="loading-state"
-          aria-live="polite"
-          hidden
-        >
-          <div
-            class="loader"
-            aria-hidden="true"
-          ></div>
+        <section id="loadingState" class="loading-state" aria-live="polite" hidden>
+          <div class="loader" aria-hidden="true"></div>
 
           <div>
             <strong>
@@ -344,23 +236,13 @@
 
 
         <!-- Result -->
-        <section
-          id="resultSection"
-          class="result-section"
-          aria-live="polite"
-          hidden
-        >
+        <section id="resultSection" class="result-section" aria-live="polite" hidden>
           <!-- JavaScript에서 결과 렌더링 -->
         </section>
 
 
         <!-- Global Error -->
-        <div
-          id="globalError"
-          class="global-error"
-          role="alert"
-          hidden
-        ></div>
+        <div id="globalError" class="global-error" role="alert" hidden></div>
       </div>
     </section>
 
@@ -368,10 +250,7 @@
     <!-- =========================
          How It Works
     ========================== -->
-    <section
-      id="how-it-works"
-      class="how-it-works section"
-    >
+    <section id="how-it-works" class="how-it-works section">
       <div class="container">
         <div class="section-heading">
           <p class="eyebrow">
@@ -451,10 +330,7 @@
     <!-- =========================
          FAQ
     ========================== -->
-    <section
-      id="faq"
-      class="faq section"
-    >
+    <section id="faq" class="faq section">
       <div class="container">
         <div class="section-heading">
           <p class="eyebrow">
@@ -532,4 +408,5 @@
     </div>
   </footer>
 </body>
+
 </html>

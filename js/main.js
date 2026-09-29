@@ -169,6 +169,40 @@ function getSelectedCompanion() {
     : null;
 }
 
+function initializeCompanionSelection() {
+  if (!plannerForm) {
+    return;
+  }
+
+  const companionInputs =
+    plannerForm.querySelectorAll(
+      'input[name="companion"]'
+    );
+
+  companionInputs.forEach(
+    (input) => {
+      input.addEventListener(
+        "change",
+        () => {
+          if (!input.checked) {
+            return;
+          }
+
+          companionInputs.forEach(
+            (otherInput) => {
+              if (
+                otherInput !== input
+              ) {
+                otherInput.checked = false;
+              }
+            }
+          );
+        }
+      );
+    }
+  );
+}
+
 
 function getSelectedStyles() {
   if (!plannerForm) {
@@ -264,9 +298,9 @@ function validateForm() {
 
   if (
     travelDateInput.value <
-      travelDateInput.min ||
+    travelDateInput.min ||
     travelDateInput.value >
-      travelDateInput.max
+    travelDateInput.max
   ) {
     dateError.textContent =
       "여행 날짜는 오늘부터 1년 이내로 선택해주세요.";
@@ -909,7 +943,7 @@ function getUserErrorMessage(error) {
       return (
         error.message &&
         error.message !==
-          "INVALID_SERVER_RESPONSE"
+        "INVALID_SERVER_RESPONSE"
       )
         ? error.message
         : (
@@ -971,6 +1005,7 @@ async function handlePlannerSubmit(event) {
 function initializeApp() {
   initializeMobileNavigation();
   setTravelDateRange();
+  initializeCompanionSelection();
 
   if (plannerForm) {
     plannerForm.addEventListener(
