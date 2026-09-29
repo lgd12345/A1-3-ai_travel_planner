@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="여행 날짜와 취향을 바탕으로 국내 여행지와 실제 장소를 추천하는 AI 여행 플래너"
+  >
+
+  <title>TripAI | AI 국내 여행 플래너</title>
+
+  <link rel="stylesheet" href="./css/style.css">
+
+  <script src="./js/theme.js" defer></script>
+  <script src="./js/main.js" defer></script>
+</head>
+
+<body>
+  <!-- =========================
+       Header
+  ========================== -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a
+        href="#home"
+        class="logo"
+        aria-label="TripAI 홈으로 이동"
+      >
+        Trip<span>AI</span>
+      </a>
+
+      <nav
+        class="desktop-nav"
+        aria-label="주요 메뉴"
+      >
+        <a href="#home">Home</a>
+        <a href="#planner">Planner</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div class="header-actions">
+        <button
+          type="button"
+          id="themeToggle"
+          class="icon-button"
+          aria-label="다크 모드 전환"
+        >
+          <span aria-hidden="true">☾</span>
+        </button>
+
+        <button
+          type="button"
+          id="menuToggle"
+          class="menu-button"
+          aria-label="모바일 메뉴 열기"
+          aria-expanded="false"
+          aria-controls="mobileNav"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+    <nav
+      id="mobileNav"
+      class="mobile-nav"
+      aria-label="모바일 메뉴"
+      hidden
+    >
+      <a href="#home">Home</a>
+      <a href="#planner">Planner</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </header>
+
+
+  <main>
+    <!-- =========================
+         Home / Hero
+    ========================== -->
+    <section
+      id="home"
+      class="hero section"
+    >
+      <div class="container hero-inner">
+        <div class="hero-content">
+          <p class="eyebrow">
+            AI DOMESTIC TRAVEL PLANNER
+          </p>
+
+          <h1>
+            고민은 줄이고,<br>
+            여행은 더 가볍게.
+          </h1>
+
+          <p class="hero-description">
+            여행 날짜와 취향을 알려주세요.
+            AI가 어울리는 국내 여행지를 추천하고,
+            실제 장소 정보를 바탕으로 여행 플랜을 만들어드립니다.
+          </p>
+
+          <div class="hero-actions">
+            <a
+              href="#planner"
+              class="button button-primary"
+            >
+              여행 계획 만들기
+            </a>
+
+            <a
+              href="#how-it-works"
+              class="button button-secondary"
+            >
+              어떻게 작동하나요?
+            </a>
+          </div>
+        </div>
+
+        <div
+          class="hero-visual"
+          aria-hidden="true"
+        >
+          <div class="travel-preview-card">
+            <span class="preview-label">
+              AI PICK
+            </span>
+
+            <strong>
+              다음 여행지는?
+            </strong>
+
+            <p>
+              날짜와 취향을 입력하면<br>
+              AI가 찾아드립니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- =========================
+         AI Planner
+    ========================== -->
+    <section
+      id="planner"
+      class="planner section"
+    >
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">
+            AI PLANNER
+          </p>
+
+          <h2>
+            어떤 여행을 떠나고 싶으신가요?
+          </h2>
+
+          <p>
+            여행 조건을 선택하면
+            AI가 어울리는 국내 여행지와 일정을 만들어드립니다.
+          </p>
+        </div>
+
+
+        <form
+          id="plannerForm"
+          class="planner-form"
+          novalidate
+        >
+          <!-- 날짜 -->
+          <div class="form-group">
+            <label for="travelDate">
+              여행 날짜
+              <span class="required-mark" aria-hidden="true">*</span>
+            </label>
+
+            <input
+              type="date"
+              id="travelDate"
+              name="date"
+              required
+            >
+
+            <p
+              id="dateError"
+              class="field-error"
+              aria-live="polite"
+            ></p>
+          </div>
+
+
+          <!-- 동행 -->
+          <fieldset class="form-group">
+            <legend>
+              누구와 떠나나요?
+            </legend>
+
+            <div class="choice-grid">
+              <label class="choice-card">
+                <input
+                  type="radio"
+                  name="companion"
+                  value="solo"
+                >
+                <span>혼자</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="radio"
+                  name="companion"
+                  value="couple"
+                >
+                <span>연인</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="radio"
+                  name="companion"
+                  value="friend"
+                >
+                <span>친구</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="radio"
+                  name="companion"
+                  value="family"
+                >
+                <span>가족</span>
+              </label>
+            </div>
+          </fieldset>
+
+
+          <!-- 여행 스타일 -->
+          <fieldset class="form-group">
+            <legend>
+              어떤 여행을 좋아하시나요?
+            </legend>
+
+            <div class="choice-grid">
+              <label class="choice-card">
+                <input
+                  type="checkbox"
+                  name="styles"
+                  value="healing"
+                >
+                <span>힐링</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="checkbox"
+                  name="styles"
+                  value="nature"
+                >
+                <span>자연</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="checkbox"
+                  name="styles"
+                  value="food"
+                >
+                <span>맛집</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="checkbox"
+                  name="styles"
+                  value="culture"
+                >
+                <span>문화</span>
+              </label>
+
+              <label class="choice-card">
+                <input
+                  type="checkbox"
+                  name="styles"
+                  value="activity"
+                >
+                <span>액티비티</span>
+              </label>
+            </div>
+          </fieldset>
+
+
+          <button
+            type="submit"
+            id="generateButton"
+            class="button button-primary generate-button"
+          >
+            AI 여행 플랜 만들기
+          </button>
+        </form>
+
+
+        <!-- Loading -->
+        <section
+          id="loadingState"
+          class="loading-state"
+          aria-live="polite"
+          hidden
+        >
+          <div
+            class="loader"
+            aria-hidden="true"
+          ></div>
+
+          <div>
+            <strong>
+              여행 플랜을 만들고 있어요.
+            </strong>
+
+            <p id="loadingMessage">
+              여행 조건을 확인하고 있습니다...
+            </p>
+          </div>
+        </section>
+
+
+        <!-- Result -->
+        <section
+          id="resultSection"
+          class="result-section"
+          aria-live="polite"
+          hidden
+        >
+          <!-- JavaScript에서 결과 렌더링 -->
+        </section>
+
+
+        <!-- Global Error -->
+        <div
+          id="globalError"
+          class="global-error"
+          role="alert"
+          hidden
+        ></div>
+      </div>
+    </section>
+
+
+    <!-- =========================
+         How It Works
+    ========================== -->
+    <section
+      id="how-it-works"
+      class="how-it-works section"
+    >
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">
+            HOW IT WORKS
+          </p>
+
+          <h2>
+            여행 계획은 이렇게 만들어집니다.
+          </h2>
+        </div>
+
+        <div class="process-grid">
+          <article class="process-card">
+            <span class="process-number">
+              01
+            </span>
+
+            <h3>
+              여행 조건 입력
+            </h3>
+
+            <p>
+              여행 날짜와 동행,
+              원하는 여행 스타일을 선택합니다.
+            </p>
+          </article>
+
+          <article class="process-card">
+            <span class="process-number">
+              02
+            </span>
+
+            <h3>
+              AI 여행지역 분석
+            </h3>
+
+            <p>
+              입력한 조건을 기반으로
+              국내 여행지를 추천합니다.
+            </p>
+          </article>
+
+          <article class="process-card">
+            <span class="process-number">
+              03
+            </span>
+
+            <h3>
+              실제 장소 검색
+            </h3>
+
+            <p>
+              Kakao Local API를 이용해
+              관광지와 맛집 정보를 조회합니다.
+            </p>
+          </article>
+
+          <article class="process-card">
+            <span class="process-number">
+              04
+            </span>
+
+            <h3>
+              맞춤 일정 완성
+            </h3>
+
+            <p>
+              AI가 실제 장소 정보를 바탕으로
+              최종 여행 일정을 구성합니다.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- =========================
+         FAQ
+    ========================== -->
+    <section
+      id="faq"
+      class="faq section"
+    >
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">
+            FAQ
+          </p>
+
+          <h2>
+            자주 묻는 질문
+          </h2>
+        </div>
+
+        <div class="faq-list">
+          <details>
+            <summary>
+              추천 여행지는 어떻게 결정되나요?
+            </summary>
+
+            <p>
+              여행 날짜와 선택한 여행 스타일 등을
+              AI가 분석하여 국내 여행지를 추천합니다.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              관광지와 맛집 정보는 어디에서 가져오나요?
+            </summary>
+
+            <p>
+              AI가 추천한 지역을 기준으로
+              Kakao Local API에서 실제 장소 정보를 조회합니다.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              AI 추천은 항상 정확한가요?
+            </summary>
+
+            <p>
+              AI가 생성한 내용은 여행 계획을 돕기 위한 참고 정보입니다.
+              운영시간이나 행사 일정 등은 방문 전에 공식 정보를 확인해주세요.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              결과가 나오지 않으면 어떻게 해야 하나요?
+            </summary>
+
+            <p>
+              일시적인 API 오류나 응답 지연이 발생할 수 있습니다.
+              잠시 후 다시 시도해주세요.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <!-- =========================
+       Footer
+  ========================== -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-logo">
+        TripAI
+      </p>
+
+      <p>
+        AI와 실제 장소 데이터를 활용한
+        국내 여행 추천 서비스
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
