@@ -1,30 +1,89 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 
 import requests
 
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 
 # =========================================================
-# 1. Environment
+# 1. Project / Environment
 # =========================================================
 
-load_dotenv()
+# api/index.py 기준으로 부모의 부모가 프로젝트 루트
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# 로컬 개발에서는 프로젝트 루트의 .env 로드
+# Vercel 배포에서는 Vercel Environment Variables를 사용
+load_dotenv(PROJECT_ROOT / ".env")
+
+
+# =========================================================
+# 2. FastAPI Application
+# =========================================================
 
 app = FastAPI(
-    title="TripAI API"
+    title="TripAI API",
+    version="1.0.0",
 )
 
 
 # =========================================================
-# 2. External API Configuration
+# 3. Static Frontend
 # =========================================================
 
-NAITO_URL = "https://copa.codyssey.kr/v1/chat/completions"
+# CSS
+css_directory = PROJECT_ROOT / "css"
+
+if css_directory.exists():
+    app.mount(
+        "/css",
+        StaticFiles(
+            directory=str(css_directory)
+        ),
+        name="css",
+    )
+
+
+# JavaScript
+js_directory = PROJECT_ROOT / "js"
+
+if js_directory.exists():
+    app.mount(
+        "/js",
+        StaticFiles(
+            directory=str(js_directory)
+        ),
+        name="js",
+    )
+
+
+# Images
+images_directory = PROJECT_ROOT / "images"
+
+if images_directory.exists():
+    app.mount(
+        "/images",
+        StaticFiles(
+            directory=str(images_directory)
+        ),
+        name="images",
+    )
+
+
+# =========================================================
+# 4. External API Configuration
+# =========================================================
+
+NAITO_URL = (
+    "https://copa.codyssey.kr/v1/chat/completions"
+)
+
 NAITO_MODEL = "gpt-5.5"
 
 KAKAO_LOCAL_URL = (
@@ -35,7 +94,7 @@ REQUEST_TIMEOUT = 30
 
 
 # =========================================================
-# 3. Constants
+# 5. Constants
 # =========================================================
 
 KOREA_REGIONS = (
@@ -58,12 +117,14 @@ KOREA_REGIONS = (
     "제주특별자치도",
 )
 
+
 ALLOWED_COMPANIONS = {
     "solo",
     "couple",
     "friend",
     "family",
 }
+
 
 ALLOWED_STYLES = {
     "healing",
@@ -73,12 +134,14 @@ ALLOWED_STYLES = {
     "activity",
 }
 
+
 COMPANION_LABELS = {
     "solo": "혼자",
     "couple": "연인",
     "friend": "친구",
     "family": "가족",
 }
+
 
 STYLE_LABELS = {
     "healing": "힐링",
@@ -90,10 +153,11 @@ STYLE_LABELS = {
 
 
 # =========================================================
-# 4. Custom Exceptions
+# 6. Custom Exception
 # =========================================================
 
 class ServiceError(Exception):
+
     def __init__(
         self,
         code,
@@ -108,10 +172,11 @@ class ServiceError(Exception):
 
 
 # =========================================================
-# 5. Environment Validation
+# 7. Environment Validation
 # =========================================================
 
 def get_api_keys():
+
     naito_api_key = os.getenv(
         "NAITO_API_KEY"
     )
@@ -133,6 +198,7 @@ def get_api_keys():
         )
 
     if missing_keys:
+
         print(
             "[TripAI] Missing environment variables:",
             ", ".join(missing_keys),
@@ -154,10 +220,11 @@ def get_api_keys():
 
 
 # =========================================================
-# 6. Request Validation
+# 8. Request Validation
 # =========================================================
 
 def validate_date(value):
+
     if not isinstance(value, str):
         return None
 
@@ -176,7 +243,9 @@ def validate_date(value):
 
 
 def validate_request(payload):
+
     if not isinstance(payload, dict):
+
         raise ServiceError(
             code="INVALID_REQUEST",
             message=(
@@ -191,6 +260,7 @@ def validate_request(payload):
     )
 
     if not date:
+
         raise ServiceError(
             code="INVALID_REQUEST",
             message=(
@@ -204,16 +274,19 @@ def validate_request(payload):
         "companion"
     )
 
-    if companion is not None:
-        if companion not in ALLOWED_COMPANIONS:
-            raise ServiceError(
-                code="INVALID_REQUEST",
-                message=(
-                    "동행 선택 값을 "
-                    "확인해주세요."
-                ),
-                status_code=400,
-            )
+    if (
+        companion is not None
+        and companion not in ALLOWED_COMPANIONS
+    ):
+
+        raise ServiceError(
+            code="INVALID_REQUEST",
+            message=(
+                "동행 선택 값을 "
+                "확인해주세요."
+            ),
+            status_code=400,
+        )
 
     styles = payload.get(
         "styles",
@@ -221,6 +294,7 @@ def validate_request(payload):
     )
 
     if not isinstance(styles, list):
+
         raise ServiceError(
             code="INVALID_REQUEST",
             message=(
@@ -230,22 +304,23 @@ def validate_request(payload):
             status_code=400,
         )
 
-    if not all(
-        isinstance(style, str)
-        and style in ALLOWED_STYLES
-        for style in styles
-    ):
-        raise ServiceError(
-            code="INVALID_REQUEST",
-            message=(
-                "여행 스타일 값을 "
-                "확인해주세요."
-            ),
-            status_code=400,
-        )
+    for style in styles:
 
-    # 같은 스타일이 중복 전달되더라도
-    # 최초 순서를 유지하며 제거
+        if (
+            not isinstance(style, str)
+            or style not in ALLOWED_STYLES
+        ):
+
+            raise ServiceError(
+                code="INVALID_REQUEST",
+                message=(
+                    "여행 스타일 값을 "
+                    "확인해주세요."
+                ),
+                status_code=400,
+            )
+
+    # 중복 스타일 제거, 입력 순서는 유지
     styles = list(
         dict.fromkeys(styles)
     )
@@ -258,13 +333,14 @@ def validate_request(payload):
 
 
 # =========================================================
-# 7. Naito API
+# 9. Naito API
 # =========================================================
 
 def call_naito(
     api_key,
     messages,
 ):
+
     headers = {
         "Authorization": (
             f"Bearer {api_key}"
@@ -274,16 +350,17 @@ def call_naito(
         ),
     }
 
-    data = {
+    payload = {
         "model": NAITO_MODEL,
         "messages": messages,
     }
 
     try:
+
         response = requests.post(
             NAITO_URL,
             headers=headers,
-            json=data,
+            json=payload,
             timeout=REQUEST_TIMEOUT,
         )
 
@@ -297,8 +374,11 @@ def call_naito(
         )
 
     except requests.HTTPError as error:
+
         status_code = (
             error.response.status_code
+            if error.response is not None
+            else None
         )
 
         print(
@@ -310,6 +390,7 @@ def call_naito(
             401,
             403,
         ):
+
             raise ServiceError(
                 code="AI_AUTH_ERROR",
                 message=(
@@ -320,6 +401,7 @@ def call_naito(
             )
 
         if status_code == 429:
+
             raise ServiceError(
                 code="RATE_LIMITED",
                 message=(
@@ -339,8 +421,9 @@ def call_naito(
         )
 
     except requests.Timeout:
+
         print(
-            "[TripAI] Naito API timeout"
+            "[TripAI] Naito timeout"
         )
 
         raise ServiceError(
@@ -353,9 +436,10 @@ def call_naito(
         )
 
     except requests.RequestException as error:
+
         print(
             "[TripAI] Naito request error:",
-            error,
+            repr(error),
         )
 
         raise ServiceError(
@@ -370,11 +454,13 @@ def call_naito(
     except (
         KeyError,
         IndexError,
+        TypeError,
         ValueError,
     ) as error:
+
         print(
             "[TripAI] Invalid Naito response:",
-            error,
+            repr(error),
         )
 
         raise ServiceError(
@@ -388,13 +474,14 @@ def call_naito(
 
 
 # =========================================================
-# 8. Recommendation Prompt
+# 10. User Preference Formatting
 # =========================================================
 
 def format_user_preferences(
     companion,
     styles,
 ):
+
     companion_text = (
         COMPANION_LABELS.get(
             companion,
@@ -402,14 +489,16 @@ def format_user_preferences(
         )
     )
 
-    style_text = (
-        ", ".join(
+    if styles:
+
+        style_text = ", ".join(
             STYLE_LABELS[style]
             for style in styles
         )
-        if styles
-        else "지정하지 않음"
-    )
+
+    else:
+
+        style_text = "지정하지 않음"
 
     return (
         f"동행: {companion_text}\n"
@@ -417,10 +506,15 @@ def format_user_preferences(
     )
 
 
+# =========================================================
+# 11. AI 1 - Travel Destination Recommendation
+# =========================================================
+
 def get_travel_recommendation(
     api_key,
     travel_request,
 ):
+
     preferences = (
         format_user_preferences(
             travel_request["companion"],
@@ -428,10 +522,7 @@ def get_travel_recommendation(
         )
     )
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""
+    prompt = f"""
 입력 여행 날짜:
 {travel_request["date"]}
 
@@ -439,25 +530,20 @@ def get_travel_recommendation(
 {preferences}
 
 해당 날짜와 여행 조건을 고려하여
-대한민국 국내에서 여행하기 좋은
-지역 1곳을 추천하세요.
+대한민국 국내에서 여행하기 좋은 지역 1곳을 추천하세요.
 
 반드시 아래 조건을 지켜주세요.
 
 - 유효한 JSON 객체만 출력하세요.
 - Markdown 코드블록을 사용하지 마세요.
 - JSON 앞뒤에 설명을 작성하지 마세요.
-- recommended_city는 대한민국 국내의
-  시/군/구 수준 지역이어야 합니다.
-- 광역자치단체명을 반드시 포함하세요.
-- reason은 추천 근거를 2~4문장으로
-  작성하세요.
-- seasonal_tip은 해당 여행 시기의
-  일반적인 여행 포인트나 준비사항을
-  1~2문장으로 작성하세요.
+- recommended_city는 대한민국 국내의 시/군/구 수준 지역이어야 합니다.
+- recommended_city에는 광역자치단체명을 반드시 포함하세요.
+- reason은 추천 근거를 2~4문장으로 작성하세요.
+- seasonal_tip은 해당 여행 시기의 일반적인 여행 포인트나
+  준비사항을 1~2문장으로 작성하세요.
 - 현재 실시간 날씨라고 표현하지 마세요.
-- 확인되지 않은 실제 행사나 축제를
-  만들어내지 마세요.
+- 확인되지 않은 실제 행사나 축제를 만들어내지 마세요.
 - 해외 지역을 추천하지 마세요.
 
 출력 형식:
@@ -468,6 +554,11 @@ def get_travel_recommendation(
   "seasonal_tip": "string"
 }}
 """
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
         }
     ]
 
@@ -481,6 +572,7 @@ def retry_travel_recommendation(
     api_key,
     travel_request,
 ):
+
     preferences = (
         format_user_preferences(
             travel_request["companion"],
@@ -488,46 +580,39 @@ def retry_travel_recommendation(
         )
     )
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""
+    prompt = f"""
 입력 여행 날짜:
 {travel_request["date"]}
 
 사용자 여행 조건:
 {preferences}
 
-이전 응답은 JSON 파싱 또는
-스키마 검증에 실패했습니다.
+이전 응답은 JSON 파싱 또는 스키마 검증에 실패했습니다.
 
-아래 3개 키만 포함한
-유효한 JSON 객체를 출력하세요.
-
-- recommended_city: string
-- reason: string
-- seasonal_tip: string
-
-추가 조건:
-
-- JSON 객체만 출력하세요.
-- Markdown 코드블록 금지
-- 설명 문장 추가 금지
-- recommended_city에는 대한민국
-  광역자치단체명과 시/군/구를
-  포함하세요.
-- reason은 2~4문장
-- seasonal_tip은 1~2문장
-- 해외 지역 금지
-
-출력 형식:
+아래 세 개의 키만 포함한 유효한 JSON 객체를 출력하세요.
 
 {{
   "recommended_city": "string",
   "reason": "string",
   "seasonal_tip": "string"
 }}
+
+조건:
+
+- JSON 객체만 출력
+- Markdown 코드블록 금지
+- 추가 설명 금지
+- recommended_city에는 대한민국 광역자치단체명과
+  시/군/구를 포함
+- reason은 2~4문장
+- seasonal_tip은 1~2문장
+- 해외 지역 금지
 """
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
         }
     ]
 
@@ -538,54 +623,60 @@ def retry_travel_recommendation(
 
 
 # =========================================================
-# 9. Recommendation Validation
+# 12. Recommendation Validation
 # =========================================================
 
 def validate_recommendation(data):
+
     if not isinstance(data, dict):
         return False
 
-    required_fields = {
-        "recommended_city": str,
-        "reason": str,
-        "seasonal_tip": str,
+    expected_keys = {
+        "recommended_city",
+        "reason",
+        "seasonal_tip",
     }
 
-    if set(data.keys()) != set(
-        required_fields.keys()
-    ):
+    if set(data.keys()) != expected_keys:
         return False
 
-    for key, expected_type in (
-        required_fields.items()
-    ):
+    for key in expected_keys:
+
         if not isinstance(
-            data[key],
-            expected_type,
+            data.get(key),
+            str,
         ):
             return False
 
         if not data[key].strip():
             return False
 
-    if not data[
+    city = data[
         "recommended_city"
-    ].startswith(KOREA_REGIONS):
+    ].strip()
+
+    if not city.startswith(
+        KOREA_REGIONS
+    ):
         return False
 
     return True
 
 
 def parse_recommendation(text):
+
     try:
+
         data = json.loads(text)
 
     except json.JSONDecodeError:
+
         return None
 
     if not validate_recommendation(
         data
     ):
+
         return None
 
     return data
@@ -595,6 +686,7 @@ def create_recommendation(
     api_key,
     travel_request,
 ):
+
     first_response = (
         get_travel_recommendation(
             api_key,
@@ -609,12 +701,12 @@ def create_recommendation(
     )
 
     if recommendation is not None:
+
         return recommendation
 
     print(
-        "[TripAI] Recommendation "
-        "schema validation failed. "
-        "Retrying once."
+        "[TripAI] Recommendation validation "
+        "failed. Retrying once."
     )
 
     retry_response = (
@@ -631,12 +723,8 @@ def create_recommendation(
     )
 
     if recommendation is not None:
-        return recommendation
 
-    print(
-        "[TripAI] Recommendation "
-        "validation failed after retry."
-    )
+        return recommendation
 
     raise ServiceError(
         code="AI_GENERATION_FAILED",
@@ -649,7 +737,7 @@ def create_recommendation(
 
 
 # =========================================================
-# 10. Kakao Local API
+# 13. Kakao Local API
 # =========================================================
 
 def search_kakao_places(
@@ -657,6 +745,7 @@ def search_kakao_places(
     query,
     size=5,
 ):
+
     headers = {
         "Authorization": (
             f"KakaoAK {api_key}"
@@ -687,17 +776,26 @@ def search_kakao_places(
     places = []
 
     for place in documents:
-        longitude = (
-            float(place["x"])
-            if place.get("x")
-            else None
-        )
 
-        latitude = (
-            float(place["y"])
-            if place.get("y")
-            else None
-        )
+        try:
+            longitude = (
+                float(place["x"])
+                if place.get("x")
+                else None
+            )
+
+            latitude = (
+                float(place["y"])
+                if place.get("y")
+                else None
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            longitude = None
+            latitude = None
 
         places.append(
             {
@@ -736,15 +834,26 @@ def safe_search_places(
     warning_code,
     warning_message,
 ):
+
     try:
-        return search_kakao_places(
+
+        data = search_kakao_places(
             api_key,
             query,
         )
 
+        return {
+            "ok": True,
+            "data": data,
+            "warning": None,
+        }
+
     except requests.HTTPError as error:
+
         status_code = (
             error.response.status_code
+            if error.response is not None
+            else None
         )
 
         print(
@@ -754,6 +863,7 @@ def safe_search_places(
         )
 
     except requests.Timeout:
+
         print(
             "[TripAI] Kakao timeout:",
             query,
@@ -763,13 +873,15 @@ def safe_search_places(
         requests.RequestException,
         ValueError,
     ) as error:
+
         print(
             "[TripAI] Kakao request error:",
             query,
-            error,
+            repr(error),
         )
 
     return {
+        "ok": False,
         "data": [],
         "warning": {
             "code": warning_code,
@@ -782,28 +894,42 @@ def collect_local_data(
     api_key,
     city,
 ):
+
     warnings = []
 
-    place_result = safe_search_places(
-        api_key,
-        f"{city} 관광명소",
-        "PLACE_SEARCH_FAILED",
-        (
-            "일부 관광지 정보를 "
-            "불러오지 못했습니다."
-        ),
+    # -------------------------
+    # Tourist places
+    # -------------------------
+
+    place_result = (
+        safe_search_places(
+            api_key,
+            f"{city} 관광명소",
+            "PLACE_SEARCH_FAILED",
+            (
+                "일부 관광지 정보를 "
+                "불러오지 못했습니다."
+            ),
+        )
     )
 
-    if isinstance(
-        place_result,
-        dict,
-    ):
-        places = place_result["data"]
+    places = place_result[
+        "data"
+    ]
+
+    if place_result[
+        "warning"
+    ]:
+
         warnings.append(
-            place_result["warning"]
+            place_result[
+                "warning"
+            ]
         )
-    else:
-        places = place_result
+
+    # -------------------------
+    # Restaurants
+    # -------------------------
 
     restaurant_result = (
         safe_search_places(
@@ -817,43 +943,47 @@ def collect_local_data(
         )
     )
 
-    if isinstance(
-        restaurant_result,
-        dict,
-    ):
-        restaurants = (
-            restaurant_result["data"]
-        )
+    restaurants = (
+        restaurant_result[
+            "data"
+        ]
+    )
+
+    if restaurant_result[
+        "warning"
+    ]:
 
         warnings.append(
-            restaurant_result["warning"]
+            restaurant_result[
+                "warning"
+            ]
         )
 
-    else:
-        restaurants = (
-            restaurant_result
-        )
+    # API는 정상인데 검색 결과가 없는 경우
+    if (
+        place_result["ok"]
+        and not places
+    ):
 
-    if not places:
         warnings.append(
             {
                 "code": "PLACE_EMPTY",
                 "message": (
-                    "검색된 관광지 정보가 "
-                    "없습니다."
+                    "검색된 관광지 정보가 없습니다."
                 ),
             }
         )
 
-    if not restaurants:
+    if (
+        restaurant_result["ok"]
+        and not restaurants
+    ):
+
         warnings.append(
             {
-                "code": (
-                    "RESTAURANT_EMPTY"
-                ),
+                "code": "RESTAURANT_EMPTY",
                 "message": (
-                    "검색된 맛집 정보가 "
-                    "없습니다."
+                    "검색된 맛집 정보가 없습니다."
                 ),
             }
         )
@@ -866,7 +996,7 @@ def collect_local_data(
 
 
 # =========================================================
-# 11. Final Itinerary Prompt
+# 14. AI 2 - Final Itinerary
 # =========================================================
 
 def get_final_itinerary(
@@ -876,21 +1006,16 @@ def get_final_itinerary(
     places,
     restaurants,
 ):
+
     input_data = {
         "request": travel_request,
-        "recommendation": (
-            recommendation
-        ),
+        "recommendation": recommendation,
         "places": places,
         "restaurants": restaurants,
     }
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""
-다음 JSON 데이터를 바탕으로
-국내 여행 일정을 작성하세요.
+    prompt = f"""
+다음 JSON 데이터를 바탕으로 국내 여행 일정을 작성하세요.
 
 입력 데이터:
 
@@ -900,8 +1025,7 @@ def get_final_itinerary(
     indent=2,
 )}
 
-반드시 유효한 JSON 객체만
-출력하세요.
+반드시 유효한 JSON 객체만 출력하세요.
 
 출력 형식:
 
@@ -916,21 +1040,20 @@ def get_final_itinerary(
 
 - Markdown 코드블록을 사용하지 마세요.
 - JSON 앞뒤에 설명을 작성하지 마세요.
-- title은 여행 컨셉을 한 문장으로
-  표현하세요.
-- morning, afternoon, evening은
-  각각 1~3문장으로 작성하세요.
-- 입력 데이터의 추천 지역을
-  벗어나지 마세요.
-- places 또는 restaurants에 존재하지 않는
-  구체적인 관광지나 음식점 이름을
-  새로 만들어내지 마세요.
-- 장소 데이터가 부족하면 장소명을
-  억지로 추가하지 말고 일반적인
-  여행 활동 수준으로 작성하세요.
-- 사용자의 동행과 여행 스타일을
-  자연스럽게 반영하세요.
+- title은 여행 컨셉을 한 문장으로 표현하세요.
+- morning, afternoon, evening은 각각 1~3문장으로 작성하세요.
+- 입력 데이터의 추천 지역을 벗어나지 마세요.
+- places 또는 restaurants에 존재하지 않는 구체적인
+  관광지나 음식점 이름을 새로 만들어내지 마세요.
+- 장소 데이터가 부족하면 장소명을 억지로 추가하지 말고
+  일반적인 여행 활동 수준으로 작성하세요.
+- 사용자의 동행과 여행 스타일을 자연스럽게 반영하세요.
 """
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
         }
     ]
 
@@ -947,22 +1070,17 @@ def retry_final_itinerary(
     places,
     restaurants,
 ):
+
     input_data = {
         "request": travel_request,
-        "recommendation": (
-            recommendation
-        ),
+        "recommendation": recommendation,
         "places": places,
         "restaurants": restaurants,
     }
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""
-이전 여행 일정 응답이
-JSON 파싱 또는 스키마 검증에
-실패했습니다.
+    prompt = f"""
+이전 여행 일정 응답이 JSON 파싱 또는
+스키마 검증에 실패했습니다.
 
 다음 입력 데이터만 사용하세요.
 
@@ -972,8 +1090,7 @@ JSON 파싱 또는 스키마 검증에
     indent=2,
 )}
 
-아래 4개 키만 포함한
-JSON 객체를 출력하세요.
+아래 네 개의 키만 포함한 JSON 객체를 출력하세요.
 
 {{
   "title": "string",
@@ -982,12 +1099,17 @@ JSON 객체를 출력하세요.
   "evening": "string"
 }}
 
-모든 값은 비어 있지 않은
-문자열이어야 합니다.
+조건:
 
-Markdown과 추가 설명은
-사용하지 마세요.
+- 모든 값은 비어 있지 않은 문자열
+- Markdown 금지
+- 추가 설명 금지
 """
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
         }
     ]
 
@@ -998,31 +1120,29 @@ Markdown과 추가 설명은
 
 
 # =========================================================
-# 12. Final Itinerary Validation
+# 15. Itinerary Validation
 # =========================================================
 
 def validate_itinerary(data):
+
     if not isinstance(data, dict):
         return False
 
-    required_fields = {
-        "title": str,
-        "morning": str,
-        "afternoon": str,
-        "evening": str,
+    expected_keys = {
+        "title",
+        "morning",
+        "afternoon",
+        "evening",
     }
 
-    if set(data.keys()) != set(
-        required_fields.keys()
-    ):
+    if set(data.keys()) != expected_keys:
         return False
 
-    for key, expected_type in (
-        required_fields.items()
-    ):
+    for key in expected_keys:
+
         if not isinstance(
-            data[key],
-            expected_type,
+            data.get(key),
+            str,
         ):
             return False
 
@@ -1033,13 +1153,19 @@ def validate_itinerary(data):
 
 
 def parse_itinerary(text):
+
     try:
+
         data = json.loads(text)
 
     except json.JSONDecodeError:
+
         return None
 
-    if not validate_itinerary(data):
+    if not validate_itinerary(
+        data
+    ):
+
         return None
 
     return data
@@ -1052,6 +1178,7 @@ def create_final_itinerary(
     places,
     restaurants,
 ):
+
     first_response = (
         get_final_itinerary(
             api_key,
@@ -1062,17 +1189,19 @@ def create_final_itinerary(
         )
     )
 
-    itinerary = parse_itinerary(
-        first_response
+    itinerary = (
+        parse_itinerary(
+            first_response
+        )
     )
 
     if itinerary is not None:
+
         return itinerary
 
     print(
-        "[TripAI] Itinerary schema "
-        "validation failed. "
-        "Retrying once."
+        "[TripAI] Itinerary validation "
+        "failed. Retrying once."
     )
 
     retry_response = (
@@ -1085,11 +1214,14 @@ def create_final_itinerary(
         )
     )
 
-    itinerary = parse_itinerary(
-        retry_response
+    itinerary = (
+        parse_itinerary(
+            retry_response
+        )
     )
 
     if itinerary is not None:
+
         return itinerary
 
     print(
@@ -1101,7 +1233,7 @@ def create_final_itinerary(
 
 
 # =========================================================
-# 13. Response Builder
+# 16. Response Builder
 # =========================================================
 
 def build_success_response(
@@ -1111,7 +1243,9 @@ def build_success_response(
     itinerary,
     warnings,
 ):
+
     if itinerary is None:
+
         warnings.append(
             {
                 "code": (
@@ -1126,12 +1260,10 @@ def build_success_response(
 
         itinerary = {
             "title": (
-                f"{recommendation['recommended_city']} "
-                "여행"
+                f"{recommendation['recommended_city']} 여행"
             ),
             "morning": (
-                "추천 지역을 여유롭게 "
-                "둘러보세요."
+                "추천 지역을 여유롭게 둘러보세요."
             ),
             "afternoon": (
                 "추천 장소를 중심으로 "
@@ -1147,20 +1279,26 @@ def build_success_response(
         "ok": True,
 
         "recommendation": {
-            "city": recommendation[
-                "recommended_city"
-            ],
-            "reason": recommendation[
-                "reason"
-            ],
+            "city": (
+                recommendation[
+                    "recommended_city"
+                ]
+            ),
+            "reason": (
+                recommendation[
+                    "reason"
+                ]
+            ),
             "seasonal_tip": (
                 recommendation[
                     "seasonal_tip"
                 ]
             ),
-            "title": itinerary[
-                "title"
-            ],
+            "title": (
+                itinerary[
+                    "title"
+                ]
+            ),
         },
 
         "places": places,
@@ -1168,15 +1306,21 @@ def build_success_response(
         "restaurants": restaurants,
 
         "itinerary": {
-            "morning": itinerary[
-                "morning"
-            ],
-            "afternoon": itinerary[
-                "afternoon"
-            ],
-            "evening": itinerary[
-                "evening"
-            ],
+            "morning": (
+                itinerary[
+                    "morning"
+                ]
+            ),
+            "afternoon": (
+                itinerary[
+                    "afternoon"
+                ]
+            ),
+            "evening": (
+                itinerary[
+                    "evening"
+                ]
+            ),
         },
 
         "warnings": warnings,
@@ -1184,19 +1328,25 @@ def build_success_response(
 
 
 # =========================================================
-# 14. Application Service
+# 17. Application Service
 # =========================================================
 
 def create_travel_plan(payload):
+
+    # 1. 사용자 입력 검증
     travel_request = (
-        validate_request(payload)
+        validate_request(
+            payload
+        )
     )
 
+    # 2. API Key 로드
     (
         naito_api_key,
         kakao_api_key,
     ) = get_api_keys()
 
+    # 3. AI 여행지 추천
     recommendation = (
         create_recommendation(
             naito_api_key,
@@ -1204,6 +1354,7 @@ def create_travel_plan(payload):
         )
     )
 
+    # 4. Kakao 관광지 / 맛집 검색
     (
         places,
         restaurants,
@@ -1215,6 +1366,7 @@ def create_travel_plan(payload):
         ],
     )
 
+    # 5. AI 최종 일정 생성
     itinerary = (
         create_final_itinerary(
             naito_api_key,
@@ -1225,6 +1377,7 @@ def create_travel_plan(payload):
         )
     )
 
+    # 6. 최종 응답 구성
     return build_success_response(
         recommendation,
         places,
@@ -1233,14 +1386,64 @@ def create_travel_plan(payload):
         warnings,
     )
 
+
 # =========================================================
-# FastAPI Routes
+# 18. Frontend Route
+# =========================================================
+
+@app.get(
+    "/",
+    include_in_schema=False,
+)
+def home():
+
+    index_file = (
+        PROJECT_ROOT / "index.html"
+    )
+
+    if not index_file.exists():
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "error": {
+                    "code": (
+                        "FRONTEND_NOT_FOUND"
+                    ),
+                    "message": (
+                        "index.html을 찾을 수 없습니다."
+                    ),
+                },
+            },
+        )
+
+    return FileResponse(
+        path=str(index_file),
+        media_type="text/html",
+    )
+
+
+# =========================================================
+# 19. API Routes
 # =========================================================
 
 @app.post("/api/plan")
-def plan(payload: dict = Body(...)):
+def plan(
+    payload: dict = Body(...)
+):
+
     try:
-        result = create_travel_plan(payload)
+
+        print(
+            "[TripAI] POST /api/plan"
+        )
+
+        result = (
+            create_travel_plan(
+                payload
+            )
+        )
 
         return JSONResponse(
             status_code=200,
@@ -1248,10 +1451,11 @@ def plan(payload: dict = Body(...)):
         )
 
     except ServiceError as error:
+
         print(
             "[TripAI] ServiceError:",
             error.code,
-            error,
+            error.message,
         )
 
         return JSONResponse(
@@ -1259,13 +1463,19 @@ def plan(payload: dict = Body(...)):
             content={
                 "ok": False,
                 "error": {
-                    "code": error.code,
-                    "message": error.message,
+                    "code": (
+                        error.code
+                    ),
+                    "message": (
+                        error.message
+                    ),
                 },
             },
         )
 
     except Exception as error:
+
+        # 상세 오류는 서버 로그에만 기록
         print(
             "[TripAI] Unexpected error:",
             repr(error),
@@ -1276,7 +1486,9 @@ def plan(payload: dict = Body(...)):
             content={
                 "ok": False,
                 "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
+                    "code": (
+                        "INTERNAL_SERVER_ERROR"
+                    ),
                     "message": (
                         "요청 처리 중 오류가 발생했습니다. "
                         "잠시 후 다시 시도해주세요."
@@ -1288,13 +1500,34 @@ def plan(payload: dict = Body(...)):
 
 @app.get("/api/plan")
 def get_plan():
+
     return JSONResponse(
         status_code=405,
         content={
             "ok": False,
             "error": {
-                "code": "METHOD_NOT_ALLOWED",
-                "message": "POST 요청만 지원합니다.",
+                "code": (
+                    "METHOD_NOT_ALLOWED"
+                ),
+                "message": (
+                    "POST 요청만 지원합니다."
+                ),
             },
         },
     )
+
+
+# =========================================================
+# 20. Health Check
+# =========================================================
+
+@app.get(
+    "/api/health",
+    include_in_schema=False,
+)
+def health():
+
+    return {
+        "ok": True,
+        "service": "TripAI",
+    }
