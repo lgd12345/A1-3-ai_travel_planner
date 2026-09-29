@@ -918,23 +918,354 @@ def safe_search_places(
         },
     }
 
+def parse_selected_indexes(
+    text,
+    candidate_count,
+    max_count,
+):
 
-def collect_local_data(
+    try:
+
+        data = json.loads(text)
+
+    except json.JSONDecodeError:
+
+        return []
+
+    if not isinstance(data, dict):
+        return []
+
+    indexes = data.get(
+        "selected_indexes"
+    )
+
+    if not isinstance(indexes, list):
+        return []
+
+    selected = []
+
+    for index in indexes:
+
+        if isinstance(index, bool):
+            continue
+
+        if not isinstance(index, int):
+            continue
+
+        if (
+            index < 0
+            or index >= candidate_count
+        ):
+            continue
+
+        if index in selected:
+            continue
+
+        selected.append(index)
+
+        if len(selected) >= max_count:
+            break
+
+    return selected
+
+
+def select_festival_places(
     api_key,
     city,
+    travel_date,
+    candidates,
+    max_count=2,
+):
+
+    if not candidates:
+        return []
+
+    candidate_data = []
+
+    for index, place in enumerate(
+        candidates
+    ):
+
+        candidate_data.append(
+            {
+                "index": index,
+                "name": place.get(
+                    "name",
+                    "",
+                ),
+                "address": place.get(
+                    "address",
+                    "",
+                ),
+                "category": place.get(
+                    "category",
+                    "",
+                ),
+            }
+        )
+
+    prompt = f"""
+여행 날짜:
+{travel_date}
+
+여행 지역:
+{city}
+
+아래 데이터는 Kakao Local 검색으로 찾은
+축제 관련 장소 후보입니다.
+
+{json.dumps(
+    candidate_data,
+    ensure_ascii=False,
+    indent=2,
+)}
+
+후보 중 여행 날짜에 방문하기 적절한
+축제 관련 장소만 선택하세요.
+
+판단 규칙:
+
+- 반드시 주어진 후보 안에서만 선택하세요.
+- 최대 {max_count}개까지만 선택하세요.
+- 여행 날짜와 계절이 명백히 맞지 않는 축제는 제외하세요.
+- 축제 이름에서 특정 계절이 명확하게 드러나는데
+  여행 날짜와 맞지 않으면 반드시 제외하세요.
+- 해당 날짜에 개최된다고 확신하기 어려운 후보는
+  억지로 선택하지 않아도 됩니다.
+- 적절한 후보가 없으면 빈 배열을 반환하세요.
+- 새로운 축제명이나 장소명을 만들지 마세요.
+
+반드시 아래 JSON 형식만 출력하세요.
+
+{{
+  "selected_indexes": []
+}}
+"""
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    ]
+
+    response = call_naito(
+        api_key,
+        messages,
+    )
+
+    indexes = (
+        parse_selected_indexes(
+            response,
+            len(candidates),
+            max_count,
+        )
+    )
+
+    return [
+        candidates[index]
+        for index in indexes
+    ]
+
+def collect_local_data(
+    kakao_api_key,
+    naito_api_key,
+    city,
     styles,
+    travel_date,
 ):
 
     warnings = []
     places = []
 
+    MAX_PLACES = 5
+    MAX_FESTIVAL_PLACES = 2
+
     # -------------------------
-    # Style-based places
+    # Helper
     # -------------------------
+
+    def add_place(place):
+
+        if len(places) >= MAX_PLACES:
+            return False
+
+        place_key = (
+            place.get("name", ""),
+            place.get("address", ""),
+        )
+
+        if not place_key[0]:
+            return False
+
+        already_exists = any(
+            (
+                existing.get(
+                    "name",
+                    "",
+                ),
+                existing.get(
+                    "address",
+                    "",
+                ),
+            )
+            == place_key
+            for existing in places
+        )
+
+        if already_exists:
+            return False
+
+        places.append(place)
+
+        return True
+
+    # -------------------------
+    # Festival candidates
+    # -------------------------
+
+    if "festival" in styles:
+
+        festival_candidates = []
+
+        travel_month = datetime.strptime(
+            travel_date,
+            "%Y-%m-%d",
+        ).month
+
+        festival_queries = [
+            (
+                f"{city} "
+                f"{travel_month}월 축제"
+            ),
+            f"{city} 축제",
+        ]
+
+        for query in festival_queries:
+
+            festival_result = (
+                safe_search_places(
+                    kakao_api_key,
+                    query,
+                    "FESTIVAL_SEARCH_FAILED",
+                    (
+                        "일부 축제 정보를 "
+                        "불러오지 못했습니다."
+                    ),
+                )
+            )
+
+            if festival_result[
+                "warning"
+            ]:
+
+                warning_exists = any(
+                    warning["code"]
+                    == festival_result[
+                        "warning"
+                    ]["code"]
+                    for warning in warnings
+                )
+
+                if not warning_exists:
+
+                    warnings.append(
+                        festival_result[
+                            "warning"
+                        ]
+                    )
+
+            for place in (
+                festival_result["data"]
+            ):
+
+                candidate_key = (
+                    place.get(
+                        "name",
+                        "",
+                    ),
+                    place.get(
+                        "address",
+                        "",
+                    ),
+                )
+
+                candidate_exists = any(
+                    (
+                        candidate.get(
+                            "name",
+                            "",
+                        ),
+                        candidate.get(
+                            "address",
+                            "",
+                        ),
+                    )
+                    == candidate_key
+                    for candidate
+                    in festival_candidates
+                )
+
+                if candidate_exists:
+                    continue
+
+                festival_candidates.append(
+                    place
+                )
+
+        try:
+
+            selected_festivals = (
+                select_festival_places(
+                    naito_api_key,
+                    city,
+                    travel_date,
+                    festival_candidates,
+                    MAX_FESTIVAL_PLACES,
+                )
+            )
+
+        except ServiceError as error:
+
+            print(
+                "[TripAI] Festival validation error:",
+                error.code,
+            )
+
+            selected_festivals = []
+
+            warnings.append(
+                {
+                    "code": (
+                        "FESTIVAL_VALIDATION_FAILED"
+                    ),
+                    "message": (
+                        "축제 정보를 확실하게 "
+                        "판단하지 못해 일반 관광지 "
+                        "중심으로 구성했습니다."
+                    ),
+                }
+            )
+
+        for festival in (
+            selected_festivals
+        ):
+
+            add_place(festival)
+
+    # -------------------------
+    # Other style places
+    # -------------------------
+
+    place_styles = [
+        style
+        for style in styles
+        if style != "festival"
+    ]
 
     style_queries = []
 
-    for style in styles:
+    for style in place_styles:
 
         style_label = (
             STYLE_LABELS.get(style)
@@ -947,25 +1278,30 @@ def collect_local_data(
             f"{city} {style_label}"
         )
 
-    # 같은 검색어가 생길 경우 중복 제거
     style_queries = list(
-        dict.fromkeys(style_queries)
+        dict.fromkeys(
+            style_queries
+        )
     )
 
-    # 스타일이 선택된 경우
-    # 선택한 스타일을 기반으로 장소 검색
     if style_queries:
+
+        remaining_count = (
+            MAX_PLACES
+            - len(places)
+        )
 
         per_style_limit = max(
             1,
-            5 // len(style_queries),
+            remaining_count
+            // len(style_queries),
         )
 
         for query in style_queries:
 
             style_result = (
                 safe_search_places(
-                    api_key,
+                    kakao_api_key,
                     query,
                     "PLACE_SEARCH_FAILED",
                     (
@@ -975,7 +1311,9 @@ def collect_local_data(
                 )
             )
 
-            if style_result["warning"]:
+            if style_result[
+                "warning"
+            ]:
 
                 warning_exists = any(
                     warning["code"]
@@ -986,6 +1324,7 @@ def collect_local_data(
                 )
 
                 if not warning_exists:
+
                     warnings.append(
                         style_result[
                             "warning"
@@ -998,43 +1337,29 @@ def collect_local_data(
                 ]
             ):
 
-                place_key = (
-                    place.get("name"),
-                    place.get("address"),
-                )
+                add_place(place)
 
-                already_exists = any(
-                    (
-                        existing.get("name"),
-                        existing.get("address"),
-                    )
-                    == place_key
-                    for existing in places
-                )
-
-                if already_exists:
-                    continue
-
-                places.append(place)
-
-                if len(places) >= 5:
+                if (
+                    len(places)
+                    >= MAX_PLACES
+                ):
                     break
 
-            if len(places) >= 5:
+            if (
+                len(places)
+                >= MAX_PLACES
+            ):
                 break
 
     # -------------------------
-    # General tourist fallback
+    # General tourist places
     # -------------------------
 
-    # 스타일 검색 결과가 5개보다 적거나
-    # 스타일을 선택하지 않은 경우
-    # 기존 관광명소 검색으로 부족한 장소를 채움
-    if len(places) < 5:
+    if len(places) < MAX_PLACES:
 
         place_result = (
             safe_search_places(
-                api_key,
+                kakao_api_key,
                 f"{city} 관광명소",
                 "PLACE_SEARCH_FAILED",
                 (
@@ -1044,7 +1369,9 @@ def collect_local_data(
             )
         )
 
-        if place_result["warning"]:
+        if place_result[
+            "warning"
+        ]:
 
             warning_exists = any(
                 warning["code"]
@@ -1055,34 +1382,23 @@ def collect_local_data(
             )
 
             if not warning_exists:
+
                 warnings.append(
                     place_result[
                         "warning"
                     ]
                 )
 
-        for place in place_result["data"]:
+        for place in (
+            place_result["data"]
+        ):
 
-            place_key = (
-                place.get("name"),
-                place.get("address"),
-            )
+            add_place(place)
 
-            already_exists = any(
-                (
-                    existing.get("name"),
-                    existing.get("address"),
-                )
-                == place_key
-                for existing in places
-            )
-
-            if already_exists:
-                continue
-
-            places.append(place)
-
-            if len(places) >= 5:
+            if (
+                len(places)
+                >= MAX_PLACES
+            ):
                 break
 
     # -------------------------
@@ -1091,7 +1407,7 @@ def collect_local_data(
 
     restaurant_result = (
         safe_search_places(
-            api_key,
+            kakao_api_key,
             f"{city} 맛집",
             "RESTAURANT_SEARCH_FAILED",
             (
@@ -1529,6 +1845,9 @@ def create_travel_plan(payload):
         ],
         travel_request[
         "styles"
+        ],
+            travel_request[
+        "date"
         ],
     )
 
